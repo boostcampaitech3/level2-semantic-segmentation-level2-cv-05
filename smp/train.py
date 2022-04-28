@@ -49,11 +49,11 @@ def main():
 
     model, preprocessing_fn = build_model(args)
     train_loader, val_loader = load_dataset(args, preprocessing_fn)
-
+    model.to(args.device)
     # Loss
     criterion = get_loss(args.criterion)
     optimizer = AdamW(model.parameters(), lr=args.lr)
-    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=0.00001)
+    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-4)
 
     # Wandb init
     wandb.init(project="seg", entity="kbum0617", name=args.name)
@@ -76,7 +76,8 @@ def main():
         pbar = tqdm(train_loader, total=len(train_loader), desc=f"Epoch{epoch} : Train")
         for i, data in enumerate(pbar):
             image, mask = data
-            image, mask = image.float().to(device), mask.long().to(device)
+            image = torch.stack(image).float().to(device)
+            mask = torch.stack(mask).long().to(device)
             output = model(image)
 
             optimizer.zero_grad()
@@ -97,18 +98,18 @@ def main():
             train_precision += precision.item()
 
             pbar.set_postfix(
-                Train_Loss=f" {train_loss/(i+1):.3f}",
-                Train_Iou=f" {train_miou_score/(i+1):.3f}",
-                Train_Acc=f" {train_accuracy/(i+1):.3f}",
+                Train_Loss=f" {train_loss / (i + 1):.3f}",
+                Train_Iou=f" {train_miou_score / (i + 1):.3f}",
+                Train_Acc=f" {train_accuracy / (i + 1):.3f}",
             )
         wandb.log({
             'epoch': epoch,
-            'train/loss': train_loss/len(train_loader),
-            'train/miou_score': train_miou_score/len(train_loader),
-            'train/pixel_accuracy': train_accuracy/len(train_loader),
-            'train/train_f1_score': train_f1_score/len(train_loader),
-            'train/train_recall': train_recall/len(train_loader),
-            'train/train_precision': train_precision/len(train_loader),
+            'train/loss': train_loss / len(train_loader),
+            'train/miou_score': train_miou_score / len(train_loader),
+            'train/pixel_accuracy': train_accuracy / len(train_loader),
+            'train/train_f1_score': train_f1_score / len(train_loader),
+            'train/train_recall': train_recall / len(train_loader),
+            'train/train_precision': train_precision / len(train_loader),
         })
         scheduler.step()
 
@@ -117,11 +118,12 @@ def main():
         val_pbar = tqdm(val_loader, total=len(val_loader), desc=f"Epoch{epoch} : Val")
         with torch.no_grad():
             model.eval()
+            hist = np.zeros((args.classes, args.classes))
             for i, data in enumerate(val_pbar):
                 image, mask = data
-                image, mask = image.to(device), mask.to(device)
+                image = torch.stack(image).float().to(device)
+                mask = torch.stack(mask).long().to(device)
                 output = model(image)
-
 
                 loss = criterion(output, mask)
                 val_loss += loss.item()
@@ -160,12 +162,12 @@ def main():
                     })
             wandb.log({
                 'epoch': epoch,
-                'val/loss': val_loss/len(val_loader),
-                'val/miou_score': val_miou_score/len(val_loader),
-                'val/pixel_accuracy': val_accuracy/len(val_loader),
-                'val/f1_score': val_f1_score/len(val_loader),
-                'val/recall': val_recall/len(val_loader),
-                'val/precision': val_precision/len(val_loader),
+                'val/loss': val_loss / len(val_loader),
+                'val/miou_score': val_miou_score / len(val_loader),
+                'val/pixel_accuracy': val_accuracy / len(val_loader),
+                'val/f1_score': val_f1_score / len(val_loader),
+                'val/recall': val_recall / len(val_loader),
+                'val/precision': val_precision / len(val_loader),
             })
         # save_model
         if args.metric:
@@ -181,9 +183,6 @@ def main():
         if (epoch + 1) % args.save_interval == 0:
             ckpt_fpath = os.path.join(args.save_dir, 'latest.pth')
             torch.save(model.state_dict(), ckpt_fpath)
-
-
-
 
 
 if __name__ == "__main__":

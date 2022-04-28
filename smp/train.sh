@@ -1,1 +1,1 @@
-python train.py --name effb4_Unet_CE
+python train.py --name effb4_Unet_new --metric

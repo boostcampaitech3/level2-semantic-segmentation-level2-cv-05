@@ -93,7 +93,7 @@ def add_hist(hist, label_trues, label_preds, n_class):
     """
         stack hist(confusion matrix)
     """
-    with torch.no_grad:
+    with torch.no_grad():
         label_preds = torch.argmax(label_preds, dim=1).detach().cpu().numpy()
         label_trues = label_trues.detach().cpu().numpy()
     for lt, lp in zip(label_trues, label_preds):
