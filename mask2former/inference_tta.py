@@ -1,6 +1,7 @@
+import os
 import sys
 
-import cv2
+import torch
 
 sys.path.insert(0, "Mask2Former")
 
@@ -21,24 +22,36 @@ from detectron2.config import get_cfg
 from detectron2.projects.deeplab import add_deeplab_config
 from detectron2.data.detection_utils import read_image
 
+import ttach as tta
+from ttach.base import Merger
+
 # import Mask2Former project
 from mask2former import add_maskformer2_config
+
+tta_transform = tta.Compose(
+    [
+        tta.Scale(scales=[0.5, 0.75, 1.0, 1.25, 1.5, 1.75]),
+        tta.HorizontalFlip(),
+    ]
+)
 
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config-file', type=str)
-    parser.add_argument('--weight', type=str)
+    parser.add_argument('--model-dir', type=str)
+    parser.add_argument('--weight', type=str, default='model_final.pth')
     arg = parser.parse_args()
     return arg
 
 
 def setup_cfg(args):
+    config_dir = os.path.join(args.model_dir, 'config.yaml')
+    weight_dir = os.path.join(args.model_dir, args.weight)
     cfg = get_cfg()
     add_deeplab_config(cfg)
     add_maskformer2_config(cfg)
-    cfg.merge_from_file(args.config_file)
-    cfg.MODEL.WEIGHTS = args.weight
+    cfg.merge_from_file(config_dir)
+    cfg.MODEL.WEIGHTS = weight_dir
     cfg.freeze()
     return cfg
 
@@ -51,19 +64,32 @@ def main():
     images = test_files['images']
     predictor = DefaultPredictor(cfg)
     size = 256
-    transform = A.Compose([A.Resize(size, size)])
+    submit_transform = A.Compose([A.Resize(size, size)])
     image_id = []
     preds_array = np.empty((0, size * size), dtype=np.long)
+
     for index, image_info in enumerate(tqdm(images, total=len(images))):
         file_name = image_info['file_name']
         image_id.append(file_name)
         path = Path('/opt/ml/input/data') / file_name
-        img = read_image(path, format="BGR")
-        pred = predictor(img)
-        output = pred['sem_seg'].argmax(dim=0).detach().cpu().numpy()
+        img = read_image(path, format="RGB")
+        img = torch.from_numpy(img.transpose(2, 0, 1)).unsqueeze(dim=0)
+        merger = Merger(type='mean', n=len(tta_transform))
+
+        for transformer in tta_transform:
+            augmented_image = transformer.augment_image(img)
+            augmented_image = augmented_image.squeeze(dim=0)
+            augmented_image = augmented_image.numpy().transpose(1, 2, 0)
+            pred = predictor(augmented_image)
+            augmented_output = pred['sem_seg'].unsqueeze(dim=0).detach().cpu()
+            deaugmented_output = transformer.deaugment_mask(augmented_output)
+            merger.append(deaugmented_output)
+
+        output = merger.result.squeeze(dim=0)
+        output = torch.argmax(output, dim=0).numpy()
         temp_mask = []
         temp_img = np.zeros((3, 512, 512))
-        transformed = transform(image=temp_img, mask=output)
+        transformed = submit_transform(image=temp_img, mask=output)
         mask = transformed['mask']
         temp_mask.append(mask)
 
@@ -78,7 +104,7 @@ def main():
             {"image_id": file_name, "PredictionString": ' '.join(str(e) for e in string.tolist())},
             ignore_index=True)
 
-    submission.to_csv("./submission/no_back_submission.csv", index=False)
+    submission.to_csv(f"./submission/{args.model_dir}.csv", index=False)
 
 
 if __name__ == "__main__":
