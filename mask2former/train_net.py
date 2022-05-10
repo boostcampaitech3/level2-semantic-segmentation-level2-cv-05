@@ -58,8 +58,8 @@ from mask2former import (
     add_maskformer2_config,
 )
 
-from register_trash_dataset_fix import register_all_trash_full_fix
 from register_trash_dataset import register_all_trash_full
+# from pseudo_register_trash_dataset import register_all_trash_full
 
 class Trainer(DefaultTrainer):
     """
@@ -318,8 +318,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    register_all_trash_full_fix()
-    print("Dataset Added")
+    register_all_trash_full('fix')
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
     launch(

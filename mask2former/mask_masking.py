@@ -1,6 +1,5 @@
+import os
 import sys
-
-import cv2
 
 sys.path.insert(0, "Mask2Former")
 
@@ -12,6 +11,7 @@ from tqdm import tqdm
 import albumentations as A
 import pandas as pd
 import warnings
+import cv2
 
 warnings.filterwarnings('ignore')
 
@@ -50,35 +50,15 @@ def main():
         test_files = json.load(f)
     images = test_files['images']
     predictor = DefaultPredictor(cfg)
-    size = 256
-    transform = A.Compose([A.Resize(size, size)])
-    image_id = []
-    preds_array = np.empty((0, size * size), dtype=np.long)
+    pseudo_dir = '/opt/ml/input/data/mmseg_remasking/annotations/test'
+    os.makedirs(pseudo_dir)
     for index, image_info in enumerate(tqdm(images, total=len(images))):
         file_name = image_info['file_name']
-        image_id.append(file_name)
         path = Path('/opt/ml/input/data') / file_name
         img = read_image(path, format="BGR")
         pred = predictor(img)
         output = pred['sem_seg'].argmax(dim=0).detach().cpu().numpy()
-        temp_mask = []
-        temp_img = np.zeros((3, 512, 512))
-        transformed = transform(image=temp_img, mask=output)
-        mask = transformed['mask']
-        temp_mask.append(mask)
-
-        oms = np.array(temp_mask)
-        oms = oms.reshape([oms.shape[0], size * size]).astype(int)
-        preds_array = np.vstack((preds_array, oms))
-
-    submission = pd.read_csv('/opt/ml/input/code/submission/sample_submission.csv', index_col=None)
-
-    for file_name, string in zip(image_id, preds_array):
-        submission = submission.append(
-            {"image_id": file_name, "PredictionString": ' '.join(str(e) for e in string.tolist())},
-            ignore_index=True)
-
-    submission.to_csv("./submission/no_back_submission.csv", index=False)
+        cv2.imwrite(os.path.join(pseudo_dir, str(index).zfill(4)+'.png'), output)
 
 
 if __name__ == "__main__":
