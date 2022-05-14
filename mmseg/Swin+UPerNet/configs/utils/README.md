@@ -1,4 +1,7 @@
-## copy_paste
+## 📝 mask_viz.ipynb
+- 생성된 mask를 원본 이미지와 함께 시각화한다. 
+
+## 📂 copy_paste
 
 - 참고 : [Copy-Paste-for-Semantic-Segmentation](https://github.com/qq995431104/Copy-Paste-for-Semantic-Segmentation)
 ```
