@@ -1,3 +1,7 @@
 submission/
 saved/
 __pycache__
+.idea
+*.pth
+*.ckpt
+
