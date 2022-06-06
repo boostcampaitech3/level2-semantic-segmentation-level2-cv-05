@@ -15,7 +15,7 @@ Convenience + Insight : 이용자의 편의를 찾는 통찰력
 |[Github](https://github.com/dudskrla) | [Github](https://github.com/KyubumShin) | [Github](https://github.com/sw930718) | [Github](https://github.com/Heruing) | [Github](https://github.com/Su-minn) |
 ## Wrap Up Report 📑
 
-💻 [Convinsight level2-semantic-segmentation pdf](https://github.com/boostcampaitech3/level2-semantic-segmentation-level2-cv-05/files/8735886/wrap.up.report.pdf)   
+💻 [Convinsight level2-semantic-segmentation pdf](https://github.com/boostcampaitech3/level2-semantic-segmentation-level2-cv-05/files/8842004/Sementic.Segmentation_CV_.05.pdf)   
 
 ## Final Score 🏆
 
